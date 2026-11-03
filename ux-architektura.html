@@ -1,0 +1,546 @@
+<!doctype html><html lang="pl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Architektura UX/UI — aplikacja „Testy KPP”</title><style>:root{--bg:#fff;--fg:#1c1c1e;--mut:#6b6b70;--line:#e3e3e8;--acc:#0a5cff;--code:#f4f4f7}
+@media(prefers-color-scheme:dark){:root{--bg:#121214;--fg:#ececf0;--mut:#9a9aa3;--line:#2b2b31;--acc:#6ea0ff;--code:#1d1d21}}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.6 -apple-system,system-ui,Segoe UI,sans-serif}
+main{max-width:820px;margin:0 auto;padding:24px 16px 64px}nav{font-size:14px;margin-bottom:16px}
+a{color:var(--acc)}h1,h2,h3{line-height:1.25}h2{margin-top:2em;border-bottom:1px solid var(--line);padding-bottom:.2em}
+table{border-collapse:collapse;display:block;overflow-x:auto}td,th{border:1px solid var(--line);padding:6px 10px;text-align:left}
+code{background:var(--code);padding:1px 5px;border-radius:4px;font-size:.9em}pre{background:var(--code);padding:12px;overflow-x:auto;border-radius:8px}pre code{padding:0;background:none}
+blockquote{border-left:3px solid var(--line);margin:0;padding-left:12px;color:var(--mut)}</style></head><body><main><nav><a href="index.html">← Testy KPP</a></nav><h1>Architektura UX/UI — aplikacja „Testy KPP”</h1>
+<p>Wersja robocza 2, 3 listopada 2026 r. Dotyczy bazy <code>data/kpp.json</code> (278 pytań, 267 w rotacji, egzamin 30 pytań / min. 27 poprawnych). Wersja 2 uwzględnia przegląd projektu: rezygnację z prognozy zdania, osobną prezentację rozbieżności klucza, doprecyzowane zasady powtórek, przerwanie i wznowienie sesji, ścisłe reguły mieszania opcji, zmienione priorytety i scenariusze (§11).</p>
+<hr />
+<h2>1. Punkt wyjścia: co wynika z danych</h2>
+<table>
+<thead>
+<tr>
+<th>Fakt w danych</th>
+<th>Konsekwencja dla UX</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Próg zdania <strong>27/30 = 90%</strong></td>
+<td>Trzeba opanować praktycznie całą bazę. Przy 90% skuteczności szansa zdania to tylko ok. 65%, przy 95% — ok. 94% (rozkład dwumianowy). Aplikacja prowadzi więc do <em>utrwalenia wszystkich pytań</em>, a nie do pojedynczego dobrego wyniku. Liczby te służą do uzasadnienia projektu, nie są pokazywane użytkownikowi jako prognoza (§7.3).</td>
+</tr>
+<tr>
+<td>267 pytań w rotacji; średnio ~100 znaków samej treści, ale najdłuższa karta (nr 101) ma <strong>926 znaków</strong> treści, kroków i opcji, a kilka kolejnych ok. 760–780</td>
+<td>Karta musi działać od 1 do kilku ekranów przewijania. Trzeba to sprawdzić na prototypie przy najdłuższych pytaniach, na małym telefonie i z powiększonym tekstem (§9).</td>
+</tr>
+<tr>
+<td><code>steps</code> (20 pytań) — pytania o kolejność</td>
+<td>Osobny wariant karty: lista kroków numerowanych 1–5 nad opcjami. Kroków <strong>nie wolno</strong> mieszać (opcje odwołują się do numerów).</td>
+</tr>
+<tr>
+<td><code>image</code> (2 pytania)</td>
+<td>Karta z ilustracją, powiększanie (pinch/tap).</td>
+</tr>
+<tr>
+<td><code>shuffleOptions</code>: <code>all</code> (178) / <code>partial</code> (31) / <code>none</code> (69) + <code>pinnedOptions</code></td>
+<td>Aplikacja <strong>ściśle respektuje</strong> te ustawienia (§4.6). <code>none</code> dotyczy m.in. opcji typu „prawdziwe są odpowiedzi C i D” — przestawienie liter zmieniłoby ich sens. <code>partial</code> przypina opcje typu „żadne z wymienionych” na ich miejscu.</td>
+</tr>
+<tr>
+<td><code>confidence</code> (209 high / 59 medium / 10 low), <code>note</code> (39)</td>
+<td>Klucz jest opracowaniem własnym. Część notatek opisuje <strong>świadomie zachowaną rozbieżność</strong>: litera zgodna z kluczami zewnętrznymi, a aktualne wytyczne ERC 2025 mówią co innego (np. 226, 252, 63, 149, 205 — raport poprawek z 3.11). To wymaga osobnej prezentacji (§4.5), nie tylko plakietki.</td>
+</tr>
+<tr>
+<td><code>inRotation=false</code> (11)</td>
+<td>Pytania <strong>wyłączone z treningu w tej aplikacji</strong> — to decyzja aplikacji, nie CEM.</td>
+</tr>
+<tr>
+<td><code>sources</code> (KSRG, ERC 2025, UPRM, MED…)</td>
+<td>Podstawa odpowiedzi widoczna przy wyjaśnieniu. Filtr po źródle tylko w przeglądarce bazy (przydatny instruktorowi) — kursantowi nazwa dokumentu nie mówi, z czym ma problem.</td>
+</tr>
+<tr>
+<td>Brak pola z działem tematycznym</td>
+<td><strong>Dodać <code>topic</code></strong> (§8) — to warunek nauki działami i „słabych obszarów”, wchodzi do MVP.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Persona główna:</strong> kursant KPP (strażak PSP/OSP, policjant, ratownik WOPR, GOPR), uczy się na telefonie, często na służbie lub w dojazdach, <strong>z częstymi przerwami</strong> i słabym zasięgiem. Cel: zdać egzamin teoretyczny za pierwszym razem, zwykle w znanym terminie.
+<strong>Persona poboczna:</strong> instruktor KPP — przegląda bazę, weryfikuje klucz, zgłasza poprawki.</p>
+<hr />
+<h2>2. Zasady projektowe</h2>
+<ol>
+<li><strong>Utrwalenie &gt; wynik.</strong> Każde pytanie ma stan wiedzy; celem jest „cała baza utrwalona”, a nie pojedynczy test.</li>
+<li><strong>Fakty zamiast prognoz.</strong> Pulpit pokazuje to, co zmierzono (pokrycie bazy, powtórki, wyniki egzaminów), a nie wyliczone prawdopodobieństwo zdania.</li>
+<li><strong>Przerwanie w każdej chwili.</strong> Zamknięcie aplikacji, telefon, wezwanie — po powrocie wszystko jest tam, gdzie było (§4.4).</li>
+<li><strong>Jedna ręka.</strong> Główne akcje w dolnej części ekranu, cele dotyku ≥ 48 px.</li>
+<li><strong>Offline-first.</strong> Pełna baza i postęp lokalnie; brak sieci nie jest stanem błędu.</li>
+<li><strong>Uczciwość klucza.</strong> Gdy przyjęta odpowiedź różni się od aktualnych wytycznych, pokazujemy obie i nazywamy je wprost. Nie nazywamy klucza bazy „oficjalnym” ani „urzędowym”.</li>
+<li><strong>Feedback nie tylko kolorem.</strong> Ikona ✓/✗ + tekst + kolor (WCAG 2.2 AA, daltonizm).</li>
+<li><strong>Zero konta na start.</strong> Postęp zabezpiecza eksport do pliku; konto (jeśli powstanie) tylko do synchronizacji. Jedyne dane wysyłane poza urządzenie to anonimowe zdarzenia analityczne (TelemetryDeck, §7.5) i — z inicjatywy użytkownika — zgłoszenia błędów w pytaniach.</li>
+</ol>
+<hr />
+<h2>3. Architektura informacji</h2>
+<pre><code>Aplikacja
+├── Start (pulpit)
+│   ├── Karta wznowienia (jeśli jest przerwana sesja lub egzamin)
+│   ├── Utrwalone: 208 / 267 pytań bazy · nie widziane: 12
+│   ├── Na dziś: 23 powtórki · CTA „Kontynuuj naukę”
+│   ├── Ostatnie egzaminy: 26 · 28 · 27
+│   └── Do egzaminu: 12 dni (jeśli ustawiono datę)
+├── Nauka
+│   ├── Sesja dzienna (powtórki + nowe + błędne, §4.2)
+│   ├── Wg tematu (topic)
+│   ├── Tylko błędne / oznaczone
+│   └── Przeglądaj bazę (lista + wyszukiwarka, wszystkie 278)
+│       └── Szczegóły pytania
+├── Egzamin próbny
+│   ├── Ekran zasad → Egzamin (30 pytań) → Wynik → Przegląd odpowiedzi
+│   └── Historia egzaminów
+├── Postępy
+│   ├── Tematy: utrwalone / w nauce / nie widziane (słabe obszary na górze)
+│   ├── Historia egzaminów (wykres wyników z linią 27)
+│   └── Statystyki (dni nauki, trafność)
+└── Więcej
+    ├── Ustawienia (data egzaminu, długość sesji, motyw, rozmiar tekstu, haptyka)
+    ├── Kopia postępu (eksport / import pliku, reset)
+    └── O bazie (źródło CEM, data aktualizacji, legenda źródeł, zasady klucza)
+</code></pre>
+<p><strong>Nawigacja:</strong> dolny pasek z 4 zakładkami — <em>Start · Nauka · Egzamin · Postępy</em> („Więcej” jako ikona w nagłówku Startu). W trakcie sesji/egzaminu pasek znika (tryb skupienia); „✕” wychodzi z zachowaniem stanu (§4.4).</p>
+<hr />
+<h2>4. Tryby i przepływy</h2>
+<h3>4.1 Sesja nauki (tryb główny)</h3>
+<pre><code>[Start] → „Kontynuuj naukę” → karta pytania → wybór odpowiedzi
+        → feedback + wyjaśnienie → „Dalej” → … → podsumowanie sesji
+</code></pre>
+<ul>
+<li>Domyślnie 15 pytań (ustawialne 10/15/25). Skład opisuje §4.2.</li>
+<li>Po odpowiedzi: zaznaczona poprawna opcja, <strong>Wyjaśnienie</strong> (domyślnie otwarte przy błędzie), <strong>Podstawa</strong> (chipy źródeł z pełną nazwą po dotknięciu), a przy rozbieżności klucza — panel z §4.5.</li>
+<li>Plakietki pewności i rozbieżności pojawiają się <strong>dopiero po odpowiedzi</strong> — wcześniej podpowiadałyby, że pytanie jest „podchwytliwe”.</li>
+<li>Akcje drugorzędne: ☆ Oznacz, ⚑ Zgłoś błąd.</li>
+<li>Pytanie, na które odpowiedziano źle, wraca na końcu tej samej sesji jako <strong>ćwiczenie</strong> (nie zmienia pudełka, §4.2).</li>
+<li>Podsumowanie: wynik sesji, ile pytań awansowało, ile czeka jutro.</li>
+</ul>
+<h3>4.2 Powtórki — zasady awansu (model pudełek Leitnera)</h3>
+<table>
+<thead>
+<tr>
+<th>Pudełko</th>
+<th>Stan pokazywany użytkownikowi</th>
+<th>Interwał do następnej powtórki</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>Nie widziane</td>
+<td>—</td>
+</tr>
+<tr>
+<td>1</td>
+<td>W nauce</td>
+<td>1 dzień</td>
+</tr>
+<tr>
+<td>2</td>
+<td>W nauce</td>
+<td>3 dni</td>
+</tr>
+<tr>
+<td>3</td>
+<td>W nauce</td>
+<td>7 dni</td>
+</tr>
+<tr>
+<td>4</td>
+<td><strong>Utrwalone</strong></td>
+<td>14 dni</td>
+</tr>
+<tr>
+<td>5</td>
+<td>Utrwalone</td>
+<td>30 dni</td>
+</tr>
+</tbody>
+</table>
+<p>Reguły:</p>
+<ol>
+<li><strong>Awansuje tylko odpowiedź w terminie</strong> (pytanie nowe albo <code>due ≤ dziś</code>), udzielona w sesji nauki przed zobaczeniem wyjaśnienia. Pierwsza poprawna odpowiedź na nowe pytanie → pudełko 2; zgadywanie przy 5 opcjach ma ok. 20% szans, więc nie daje od razu wyższego stanu.</li>
+<li><strong>Poprawna odpowiedź przed terminem</strong> (np. drugi raz tego samego dnia, w trybie „wg tematu”, w egzaminie) nie zmienia pudełka — trafia tylko do statystyk.</li>
+<li><strong>Błąd w dowolnym trybie, także w egzaminie</strong>, cofa pytanie do pudełka 1 (termin: jutro).</li>
+<li><strong>Powtórzenie po błędzie w tej samej sesji to ćwiczenie</strong> — nie awansuje.</li>
+<li>Skutek: „Utrwalone” wymaga co najmniej 3 poprawnych odpowiedzi w terminie, w 3 różnych dniach, rozłożonych na ≥ 10 dni.</li>
+</ol>
+<p><strong>Skład sesji dziennej:</strong></p>
+<ul>
+<li>Kolejność: zaległe powtórki (najdłużej zaległe najpierw) → nowe pytania → błędne z poprzednich dni.</li>
+<li>Dopóki są pytania nie widziane, <strong>min. 30% sesji to nowe pytania</strong> — powtórki nie mogą ich całkiem wyprzeć.</li>
+<li>Gdy zaległości przekraczają 3 sesje, aplikacja mówi o tym wprost („Masz 52 zaległe powtórki — dziś bez nowych pytań?” [Tak] [Zostaw nowe]) zamiast po cichu zmieniać proporcje.</li>
+</ul>
+<p><strong>Data egzaminu (opcjonalna):</strong></p>
+<ul>
+<li>Dzienna liczba nowych pytań = nie widziane ÷ (dni do egzaminu − 3 dni zapasu), zaokrąglone w górę.</li>
+<li>Interwały skracane tak, by każde pytanie miało co najmniej jedną powtórkę w ostatnich 7 dniach przed egzaminem.</li>
+<li>Pulpit pokazuje plan w liczbach: „Do egzaminu 12 dni · dziś 18 nowych, 23 powtórki”. Bez daty — stałe tempo z ustawień.</li>
+</ul>
+<h3>4.3 Egzamin próbny</h3>
+<ul>
+<li>Ekran zasad: „30 losowych pytań, wymagane 27 poprawnych, bez podpowiedzi”. Limit czasu — <strong>do ustalenia z regulaminem</strong>; w aplikacji opcjonalny (domyślnie wyłączony), widoczny jako dyskretny licznik.</li>
+<li>Losowanie wyłącznie z <code>inRotation=true</code>; kolejność opcji wg §4.6, ustalana raz przy losowaniu.</li>
+<li>Brak feedbacku i plakietek w trakcie. Pasek postępu 1–30, pominięcie i „wróć później”, siatka pytań do przeskakiwania. Powrót do pytania pokazuje <strong>tę samą kolejność opcji</strong> i zaznaczoną wcześniej odpowiedź.</li>
+<li>Przed oddaniem: „Masz 2 pytania bez odpowiedzi” → [Wróć] [Oddaj].</li>
+<li>Wynik: <strong>28/30 — ZDANY</strong> (lub NIEZDANY, brakło 1), lista błędów z wyjaśnieniami i panelami rozbieżności. Błędne pytania automatycznie trafiają do pudełka 1 (§4.2).</li>
+<li>Jednocześnie może być <strong>jeden</strong> aktywny egzamin; rozpoczęcie nowego wymaga porzucenia przerwanego („Porzucić egzamin 12/30? Wynik nie zostanie zapisany”).</li>
+</ul>
+<h3>4.4 Przerwanie i wznowienie</h3>
+<p>Stan aktywnej sesji i egzaminu zapisuje się <strong>po każdej akcji</strong> (odpowiedź, pominięcie, przejście). Po zamknięciu aplikacji, utracie zasięgu czy restarcie telefonu przetrwa:</p>
+<ul>
+<li>tryb i zestaw pytań (ID) w ustalonej kolejności,</li>
+<li>kolejność opcji każdego pytania,</li>
+<li>udzielone odpowiedzi, oznaczenia „wróć później”, bieżąca pozycja,</li>
+<li>dla egzaminu z limitem: pozostały czas (czas biegnie tylko przy otwartej aplikacji — to trening, nie egzamin urzędowy; informacja na ekranie zasad),</li>
+<li>kopia treści pytań z chwili rozpoczęcia (§7.2).</li>
+</ul>
+<p>Na Starcie, nad wszystkim innym:</p>
+<pre><code>┌──────────────────────────────┐
+│ Przerwany egzamin próbny     │
+│ Odpowiedziano 12 / 30        │
+│ rozpoczęty dziś, 14:05       │
+│ [Wznów egzamin]   Porzuć     │
+└──────────────────────────────┘
+</code></pre>
+<ul>
+<li>Wznowienie otwiera dokładnie to pytanie, na którym przerwano.</li>
+<li>Przerwana sesja nauki: „Wznów naukę — 7 / 15”. Odpowiedzi już udzielone zostały zaliczone do postępu na bieżąco, więc porzucenie niczego nie cofa. Sesja nauki starsza niż 24 h jest zamykana automatycznie z krótką informacją; egzamin czeka do decyzji użytkownika.</li>
+<li>„✕” w trakcie egzaminu: „Wyjść? Egzamin zostanie zapisany, wrócisz do niego z ekranu Start” [Wyjdź] [Zostań].</li>
+</ul>
+<h3>4.5 Pytania z rozbieżnością klucza</h3>
+<p>Dotyczy pytań, w których przyjęta odpowiedź jest zgodna z kluczami zewnętrznymi (gov.pl 2024, dlaratownikaimedyka 2025), a aktualne wytyczne wskazują co innego. Po odpowiedzi, zamiast zwykłej notatki:</p>
+<pre><code>┌──────────────────────────────┐
+│ ✓ Odpowiedź przyjęta w bazie │
+│   C — od 1. miesiąca do 1. r.│
+│   Zgodna z kluczami          │
+│   zewnętrznymi do egzaminu.  │
+├──────────────────────────────┤
+│ ⓘ Różnica względem aktualnych│
+│   wytycznych (ERC 2025 PLS)  │
+│   Niemowlę: od urodzenia do  │
+│   1. roku życia — wg nowych  │
+│   wytycznych poprawne byłoby │
+│   E.                         │
+└──────────────────────────────┘
+</code></pre>
+<ul>
+<li>Obie sekcje rozwinięte, równorzędne wizualnie; żadna nie nosi nazwy „oficjalna odpowiedź egzaminacyjna”.</li>
+<li>Zaliczenie odpowiedzi liczone wg odpowiedzi przyjętej w bazie; wybór wariantu zgodnego z aktualnymi wytycznymi pokazuje komunikat „Twoja odpowiedź odpowiada wytycznym ERC 2025, ale w bazie przyjęto C” zamiast samego ✗. Pytanie i tak trafia do pudełka 1.</li>
+<li>W „O bazie” krótko opisane zasady: skąd pochodzi klucz, kiedy litera jest zmieniana, a kiedy zostaje z notatką.</li>
+<li>Pytania <code>inRotation=false</code> w przeglądarce bazy mają baner: <strong>„Wyłączone z treningu w tej aplikacji — treść lub odpowiedź budzi wątpliwości”</strong>. Nie pojawiają się w sesjach ani egzaminie i nie wliczają się do 267.</li>
+</ul>
+<h3>4.6 Kolejność opcji</h3>
+<ul>
+<li><code>all</code> — wszystkie opcje losowane; <code>partial</code> — losowane wszystkie poza <code>pinnedOptions</code>, które zostają na swoim miejscu (zwykle na końcu); <code>none</code> — kolejność jak w arkuszu CEM.</li>
+<li>Po przemieszaniu litery A–E nadawane są od nowa wg pozycji na ekranie. Odpowiedź zapisywana jest jako <strong>oryginalna litera z bazy</strong>, więc postęp, zgłoszenia i raporty odnoszą się do numeracji CEM.</li>
+<li>Kolejność losowana raz na pytanie na sesję/egzamin i zapisywana (§4.4) — nie zmienia się przy powrocie do pytania ani po wznowieniu.</li>
+<li>Wyjaśnienia nie odwołują się do liter A–E (sprawdzone w bieżącej bazie: brak takich odwołań); odwołania do numerów kroków są poprawne, bo kroki nie są mieszane.</li>
+</ul>
+<h3>4.7 Przeglądarka bazy</h3>
+<ul>
+<li>Lista wszystkich 278 pytań: numer CEM, początek treści, stan (nie widziane / w nauce / utrwalone), znaczniki ☆ / ⓘ rozbieżność / ⚠ niska pewność / „wyłączone z treningu”.</li>
+<li>Wyszukiwarka pełnotekstowa (treść + opcje, ignorowanie polskich znaków: „oparzen” znajduje „oparzeń”).</li>
+<li>Filtry: stan, temat, oznaczone, rozbieżność klucza, pewność, wyłączone; <strong>źródło</strong> jako filtr zaawansowany (dla instruktora).</li>
+<li>Szczegóły pytania pokazują oryginalną kolejność opcji A–E (jak w PDF CEM) — przydatne przy porównaniu z kluczem.</li>
+<li>Plakietki są tu widoczne od razu — przeglądarka to tryb przeglądu, nie sprawdzania się.</li>
+</ul>
+<hr />
+<h2>5. Ekrany kluczowe (szkice)</h2>
+<h3>Start</h3>
+<pre><code>┌──────────────────────────────┐
+│ Testy KPP               ⚙   │
+│                              │
+│  Utrwalone pytania bazy      │
+│  ███████████████░░░░         │
+│  208 / 267 · nie widziane 12 │
+│                              │
+│  Do egzaminu: 12 dni         │
+│  Dziś: 23 powtórki, 18 nowych│
+│  ┌──────────────────────────┐│
+│  │   Kontynuuj naukę  ▶     ││
+│  └──────────────────────────┘│
+│  Ostatnie egzaminy           │
+│  26 ✗   28 ✓   27 ✓          │
+│  [Nowy egzamin próbny]       │
+├──────────────────────────────┤
+│ Start  Nauka  Egzamin Postępy│
+└──────────────────────────────┘
+</code></pre>
+<p>Pierwsze uruchomienie (bez postępu) — patrz scenariusz §11.1.</p>
+<h3>Karta pytania — po odpowiedzi</h3>
+<pre><code>┌──────────────────────────────┐
+│ ✕   7 / 15   ━━━━━░░░░░  ☆ ⚑ │
+│ Pytanie nr 58                │
+│                              │
+│ Rany otwarte klatki          │
+│ piersiowej zabezpieczamy…    │
+│                              │
+│ ┌──────────────────────────┐ │
+│ │ A  opatrunkiem …       ✗ │ │  ← wybrana, błędna
+│ └──────────────────────────┘ │
+│ ┌──────────────────────────┐ │
+│ │ B  …                     │ │
+│ └──────────────────────────┘ │
+│ ┌──────────────────────────┐ │
+│ │ E  …        ✓ Poprawna   │ │
+│ └──────────────────────────┘ │
+│ ▼ Wyjaśnienie                │
+│   …                          │
+│   Podstawa: [ERC 2025 – FA]  │
+│            (treść przewijana)│
+├──────────────────────────────┤
+│ ┌──────────────────────────┐ │  ← stały pasek akcji
+│ │         Dalej  →         │ │    poza obszarem treści
+│ └──────────────────────────┘ │
+└──────────────────────────────┘
+</code></pre>
+<p>„Dalej” siedzi w stałym pasku pod obszarem przewijania (nie nad treścią), więc nigdy nie zasłania ostatniej opcji ani wyjaśnienia.</p>
+<h3>Karta z krokami (<code>steps</code>)</h3>
+<pre><code>│ Wskaż prawidłową kolejność…  │
+│ ┌──────────────────────────┐ │
+│ │ 1 zamknąć dopływ gazu…   │ │  ← panel kroków, stały,
+│ │ 2 ocenić czynności…      │ │    numeracja nie mieszana
+│ │ 3 wynieść poszkodowanego │ │
+│ │ 4 wezwać ZRM i PSP…      │ │
+│ │ 5 opuścić pomieszczenie… │ │
+│ └──────────────────────────┘ │
+│  A  3, 2, 4                  │
+│  B  1, 2, 3, 4               │
+</code></pre>
+<p>Panel kroków domyślnie rozwinięty; na wąskich ekranach można go zwinąć, a przy zwinięciu dotknięcie numeru w opcji pokazuje treść kroku.</p>
+<h3>Wynik egzaminu</h3>
+<pre><code>│          26 / 30             │
+│        ✗ NIEZDANY            │
+│   Do zaliczenia brakło 1     │
+│  ───────────────────────     │
+│  Błędne (4) — dodane do      │
+│  powtórek na jutro           │
+│  › nr 132 Uciskanie kl. … ⓘ  │
+│  › nr 102 Kolejność …        │
+│  [Przejrzyj błędy]  [Nowy]   │
+</code></pre>
+<hr />
+<h2>6. Biblioteka komponentów</h2>
+<table>
+<thead>
+<tr>
+<th>Komponent</th>
+<th>Warianty / stany</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>QuestionCard</code></td>
+<td>standard · z krokami · z obrazem; stany: oczekuje, odpowiedziano-dobrze, odpowiedziano-źle, egzamin (bez feedbacku); treść przewijana niezależnie od paska akcji</td>
+</tr>
+<tr>
+<td><code>OptionButton</code></td>
+<td>domyślny, wybrany, poprawny, błędny, poprawny-niewybrany, zgodny-z-wytycznymi, nieaktywny; etykieta litery + tekst; klawisze 1–5 / A–E</td>
+</tr>
+<tr>
+<td><code>StepsPanel</code></td>
+<td>rozwinięty / zwinięty</td>
+</tr>
+<tr>
+<td><code>ExplanationPanel</code></td>
+<td>wyjaśnienie, chipy źródeł, notatka, plakietka pewności</td>
+</tr>
+<tr>
+<td><code>KeyDiscrepancyPanel</code></td>
+<td>dwie sekcje: „Odpowiedź przyjęta w bazie” / „Różnica względem aktualnych wytycznych”</td>
+</tr>
+<tr>
+<td><code>ConfidenceBadge</code></td>
+<td>wysoka (ukryta), średnia „do weryfikacji”, niska „niepewna odpowiedź”</td>
+</tr>
+<tr>
+<td><code>ExcludedBanner</code></td>
+<td>„Wyłączone z treningu w tej aplikacji…”</td>
+</tr>
+<tr>
+<td><code>ActionBar</code></td>
+<td>stały dolny pasek: Dalej / Oddaj / Sprawdź</td>
+</tr>
+<tr>
+<td><code>SessionHeader</code>, <code>ProgressBar</code></td>
+<td>postęp sesji, wyjście z zapisem, oznacz, zgłoś</td>
+</tr>
+<tr>
+<td><code>ResumeCard</code></td>
+<td>przerwany egzamin / przerwana sesja nauki</td>
+</tr>
+<tr>
+<td><code>CoverageSummary</code></td>
+<td>utrwalone / w nauce / nie widziane, liczby bezwzględne + pasek</td>
+</tr>
+<tr>
+<td><code>ExamHistory</code></td>
+<td>ostatnie 3 wyniki (pulpit), wykres z linią 27 (Postępy)</td>
+</tr>
+<tr>
+<td><code>TopicList</code></td>
+<td>tematy z pokryciem, sortowane od najsłabszego</td>
+</tr>
+<tr>
+<td><code>ExamNavigator</code></td>
+<td>siatka 30 pól: bez odp., odpowiedziano, „wróć później”</td>
+</tr>
+<tr>
+<td><code>ReportSheet</code></td>
+<td>dolny arkusz zgłoszenia: kategoria (klucz/treść/wyjaśnienie/literówka) + komentarz</td>
+</tr>
+<tr>
+<td><code>EmptyState</code>, <code>Toast</code>, <code>ConfirmDialog</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3>Tokeny wizualne (szkic)</h3>
+<ul>
+<li><strong>Kolor bazowy:</strong> zieleń ratownicza jako akcent, neutralne szarości; sukces = zieleń + ✓, błąd = czerwień + ✗, rozbieżność = niebieski + ⓘ (informacja, nie ostrzeżenie), niska pewność = bursztyn + ⚠. Pełny motyw jasny i ciemny.</li>
+<li><strong>Typografia:</strong> systemowa (szybkość, polskie znaki), treść pytania 18–20 px, opcje 17 px, obsługa powiększenia tekstu systemowego do 200% bez łamania układu.</li>
+<li><strong>Odstępy:</strong> siatka 4/8 px, margines boczny 16 px.</li>
+<li><strong>Ruch:</strong> krótkie przejścia 150–200 ms, wyłączane przy <code>prefers-reduced-motion</code>; haptyka przy odpowiedzi (opcjonalna).</li>
+</ul>
+<hr />
+<h2>7. Architektura stanu (warstwa UX ↔ dane)</h2>
+<pre><code>kpp.json (statyczny, wersjonowany)        Dane użytkownika (IndexedDB)
+ ├─ questions[] (+ topic, revision,        ├─ progress[id] = {box, due, seen,
+ │   discrepancy)                          │    correct, wrong, revision}
+ ├─ sources{}                              ├─ activeSession | null
+ ├─ exam{questions, passMin}               ├─ activeExam | null
+ └─ sourceUpdated                          ├─ exams[] {date, ids, answers, score}
+          │                                ├─ flags[id] (☆)
+          ▼                                ├─ reports[] (kolejka zgłoszeń)
+   QuestionRepository                      └─ settings {examDate, sessionSize…}
+   (filtrowanie, losowanie,
+    kolejność opcji)  ──►  SessionEngine (Nauka / Egzamin)  ──►  UI
+                            Scheduler (Leitner, §4.2)
+                            SessionStore (zapis po każdej akcji)
+</code></pre>
+<h3>7.1 Aktywna sesja</h3>
+<pre><code>activeExam = {
+  id, startedAt, timeLeftSec | null,
+  items: [{ qid, revision, optionOrder: [&quot;C&quot;,&quot;A&quot;,&quot;E&quot;,&quot;B&quot;,&quot;D&quot;],
+            answer: &quot;A&quot; | null, later: false }],
+  position: 12,
+  snapshot: { [qid]: { question, options, steps, answer, … } }
+}
+</code></pre>
+<p><code>activeSession</code> ma ten sam kształt (bez limitu czasu). Zapis transakcyjny po każdej akcji; odczyt przy starcie aplikacji decyduje o wyświetleniu <code>ResumeCard</code>.</p>
+<h3>7.2 Aktualizacja bazy</h3>
+<ul>
+<li>Każde pytanie ma <code>revision</code>; <code>progress[id].revision</code> pamięta wersję, na której zdobyto postęp.</li>
+<li>Zmiana <code>answer</code> lub treści → pytanie wraca do pudełka 1 z komunikatem „Zaktualizowano odpowiedź do tego pytania — powtórz je”. Bez tego kursant mógłby „utrwalić” nieaktualny klucz (raport z 3.11 zmienił m.in. 58, 239, 259).</li>
+<li>Sama zmiana wyjaśnienia lub notatki nie resetuje postępu, tylko oznacza pytanie jako „zaktualizowane wyjaśnienie” do obejrzenia.</li>
+<li>Aktywny egzamin/sesja kończy się na <strong>kopii z chwili rozpoczęcia</strong> (<code>snapshot</code>); reset zmienionych pytań następuje po jej zakończeniu.</li>
+</ul>
+<h3>7.3 Wskaźniki pulpitu</h3>
+<ul>
+<li><strong>Utrwalone / 267</strong> (pudełko ≥ 4), <strong>w nauce</strong> (1–3), <strong>nie widziane</strong> (0) — liczby bezwzględne, procent opisany jako „utrwalone pytania bazy”.</li>
+<li><strong>Powtórki na dziś</strong>, <strong>nowe na dziś</strong> (z planu przy dacie egzaminu).</li>
+<li><strong>Ostatnie 3 egzaminy próbne</strong> z oznaczeniem zdany/niezdany.</li>
+<li>Bez prognozy „szansy zdania”. Ewentualny model predykcyjny dopiero wtedy, gdy będzie można go skalibrować na danych (np. porównując stan pudełek z wynikami egzaminów próbnych) — patrz §10, „Później”.</li>
+</ul>
+<h3>7.4 Offline i kopia postępu</h3>
+<ul>
+<li>PWA z service workerem; baza (~kilkaset kB) + 2 obrazy w pamięci podręcznej przy pierwszym uruchomieniu.</li>
+<li>Zgłoszenia błędów kolejkowane i wysyłane po odzyskaniu sieci.</li>
+<li>Eksport postępu do pliku JSON (udostępnij / zapisz) i import na innym urządzeniu; przypomnienie o kopii po 7 dniach nauki bez eksportu. Bez konta to jedyne zabezpieczenie przed utratą danych przy czyszczeniu przeglądarki.</li>
+</ul>
+<h3>7.5 Analityka (TelemetryDeck)</h3>
+<ul>
+<li>Aplikacja iOS używa TelemetryDeck (SDK Swift, przestrzeń nazw <code>com.michalbgames</code>) do anonimowych statystyk użycia. Brak kont, brak identyfikatora reklamowego (IDFA), brak śledzenia między aplikacjami.</li>
+<li>Identyfikator użytkownika jest domyślnie haszowany po stronie urządzenia; TelemetryDeck nie dostaje danych pozwalających zidentyfikować osobę.</li>
+<li>Wysyłane zdarzenia: <code>studyStarted</code> (tryb nauki), <code>studyFinished</code> (liczba pytań i poprawnych odpowiedzi), <code>examStarted</code>, <code>examFinished</code> (wynik i zdany/niezdany), <code>purchaseCompleted</code>, a także automatyczne sygnały SDK (start sesji, wersja aplikacji, model urządzenia, system).</li>
+<li>Nie wysyłamy treści pytań, odpowiedzi użytkownika ani zawartości eksportu postępu. Postęp nauki zostaje na urządzeniu (§7.4).</li>
+<li>Analityka nie blokuje działania offline: zdarzenia są kolejkowane przez SDK i wysyłane po odzyskaniu sieci.</li>
+</ul>
+<hr />
+<h2>8. Rekomendowane zmiany w danych</h2>
+<ol>
+<li><strong>Pole <code>topic</code></strong> (jeden dział na pytanie), np.: <em>Organizacja systemu i prawo · Ocena poszkodowanego · BLS/AED dorośli · Resuscytacja dzieci i noworodków · Drogi oddechowe i sprzęt · Wstrząs i krwotoki · Urazy (głowa, kręgosłup, klatka, kończyny) · Oparzenia i termiczne · Zatrucia i środowiskowe · Stany nagłe (udar, zawał, cukrzyca, drgawki) · Poród i położnictwo · Segregacja i zdarzenia masowe · Ewakuacja i bezpieczeństwo</em>. Warunek MVP.</li>
+<li><strong>Pole <code>discrepancy</code></strong> dla pytań ze świadomie zachowaną rozbieżnością, oddzielone od ogólnej <code>note</code>:
+   <code>json
+   "discrepancy": {
+     "basis": "Zgodne z kluczami gov.pl 2024 i dlaratownikaimedyka 2025",
+     "current": "E",
+     "guideline": "ERC2025-PLS",
+     "text": "Niemowlę: od urodzenia do ukończenia 1. roku życia."
+   }</code>
+   Dziś ta informacja jest wymieszana z innymi notatkami w <code>note</code> i nie da się jej niezawodnie wyświetlić w osobnym panelu.</li>
+<li><strong><code>revision</code> per pytanie</strong> — prostsze i pewniejsze niż porównywanie skrótów przy wykrywaniu zmian klucza.</li>
+<li><strong>Wyjaśnienia bez odwołań do liter A–E</strong> — utrzymać jako regułę redakcyjną (obecnie spełniona).</li>
+<li><strong>Odbiorca zgłoszeń</strong> — ustalić (e-mail, formularz, issue w repo); bez tego ⚑ tylko zapisuje lokalnie.</li>
+</ol>
+<hr />
+<h2>9. Dostępność i jakość</h2>
+<ul>
+<li>WCAG 2.2 AA: kontrast ≥ 4,5:1, widoczny focus, pełna obsługa klawiaturą (1–5 / A–E wybór, Enter dalej, S pomiń), czytnik ekranu ogłasza „Poprawnie” / „Błędnie, poprawna odpowiedź: …”.</li>
+<li><strong>Test długich kart:</strong> prototyp sprawdzony na pytaniach o największej długości (101, 204, 130, 129, 199) na ekranie 360×640 przy 100% i 200% tekstu; kryteria: wszystkie opcje osiągalne przewijaniem, „Dalej” nie zasłania treści, panel kroków nie wypycha opcji poza 2 ekrany przy zwinięciu.</li>
+<li>Rozmiar tekstu do 200%, orientacja pionowa i pozioma; tablet: karta max 640 px, wyjaśnienie obok na ≥ 1024 px.</li>
+<li>Wydajność: pierwsze wyświetlenie &lt; 1,5 s na średnim Androidzie, przejście między pytaniami bez opóźnienia, zapis stanu po akcji niezauważalny (&lt; 50 ms).</li>
+<li>Zastrzeżenie stale dostępne w „O bazie”: odpowiedzi są opracowaniem własnym opartym na kluczach zewnętrznych i wytycznych, nie urzędowym kluczem CEM.</li>
+</ul>
+<hr />
+<h2>10. Kolejność wdrożenia</h2>
+<table>
+<thead>
+<tr>
+<th>Etap</th>
+<th>Zakres</th>
+<th>Wartość</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Prototyp</strong></td>
+<td>Karta pytania (3 warianty) na najdłuższych pytaniach, panel rozbieżności, scenariusze z §11</td>
+<td>Weryfikacja decyzji przed kodem produkcyjnym</td>
+</tr>
+<tr>
+<td><strong>MVP</strong></td>
+<td>Sesja nauki, Leitner wg §4.2, egzamin próbny 30/27, przerwanie i wznowienie, <code>topic</code> + nauka wg tematu, panel rozbieżności, eksport/import postępu, offline</td>
+<td>Pełny, bezpieczny cykl nauka → egzamin</td>
+</tr>
+<tr>
+<td><strong>v1</strong></td>
+<td>Pulpit z pokryciem i historią egzaminów, data egzaminu i plan dzienny, przeglądarka + wyszukiwarka, oznaczanie, zgłaszanie błędów, ciemny motyw</td>
+<td>Planowanie nauki i zaufanie</td>
+</tr>
+<tr>
+<td><strong>v1.1</strong></td>
+<td>Słabe obszary wg tematu, wykres historii egzaminów, filtry zaawansowane (źródło, pewność)</td>
+<td>Nauka celowana</td>
+</tr>
+<tr>
+<td><strong>Później</strong></td>
+<td>Siatka opanowania wszystkich pytań, skalibrowany model gotowości, konto i synchronizacja, panel instruktora, przypomnienia push</td>
+<td>Skala</td>
+</tr>
+</tbody>
+</table>
+<p>Proponowany stos (lekki, statyczny): Vite + React lub Svelte, PWA, IndexedDB (np. przez <code>idb</code>), brak backendu w MVP.</p>
+<hr />
+<h2>11. Scenariusze do przejścia przed kodowaniem</h2>
+<h3>11.1 Pierwsze uruchomienie bez postępu</h3>
+<ol>
+<li>Ekran powitalny (jeden): czym jest aplikacja, że odpowiedzi to opracowanie własne, link „Zasady klucza”. [Zaczynam]</li>
+<li>Opcjonalne pytanie: „Kiedy masz egzamin?” [wybierz datę] [Nie wiem / pomiń].</li>
+<li>Od razu pierwsza sesja: 10 nowych pytań z różnych tematów — bez testu wstępnego i bez konta.</li>
+<li>Po sesji pulpit pokazuje realne liczby („10 widzianych, 0 utrwalonych — pierwsze powtórki jutro”), a nie puste wykresy.</li>
+</ol>
+<p>Do rozstrzygnięcia: czy proponować egzamin próbny „na rozgrzewkę” na starcie (ryzyko demotywacji przy wyniku ~10/30).</p>
+<h3>11.2 Powrót do przerwanego egzaminu</h3>
+<ol>
+<li>Kursant odpowiada na 12/30, dostaje wezwanie, aplikacja ląduje w tle; system ją zamyka.</li>
+<li>Po 3 godzinach: Start pokazuje <code>ResumeCard</code> „Przerwany egzamin — 12/30” nad wszystkimi innymi elementami.</li>
+<li>[Wznów] → pytanie 13, siatka pokazuje 12 odpowiedzianych; powrót do pytania 4 pokazuje tę samą kolejność opcji i zaznaczoną odpowiedź.</li>
+<li>W międzyczasie przyszła aktualizacja bazy zmieniająca klucz pytania 7 — egzamin kończy się na kopii, po wyniku komunikat „1 pytanie z tego egzaminu zostało zaktualizowane”.</li>
+</ol>
+<p>Do rozstrzygnięcia: czy przerwany egzamin z limitem czasu powinien po 24 h wygasać.</p>
+<h3>11.3 Odpowiedź na pytanie z rozbieżnością klucza</h3>
+<ol>
+<li>Sesja nauki, pytanie 226 (definicja niemowlęcia). Kursant zna ERC 2025 i wybiera E.</li>
+<li>Feedback: nie zwykłe ✗, tylko „Twoja odpowiedź odpowiada wytycznym ERC 2025, ale w bazie przyjęto C” + <code>KeyDiscrepancyPanel</code> z obiema sekcjami.</li>
+<li>Pytanie trafia do pudełka 1, bo celem jest egzamin, którego klucz (wg kluczy zewnętrznych) wskazuje C.</li>
+<li>W przeglądarce bazy pytanie ma znacznik ⓘ i daje się odfiltrować („Rozbieżność klucza”), żeby powtórzyć wszystkie takie przypadki naraz.</li>
+</ol>
+<p>Do rozstrzygnięcia: czy wybór wariantu zgodnego z wytycznymi powinien cofać do pudełka 1, czy np. tylko o jedno pudełko — to decyzja o tym, ile aplikacja „karze” za wiedzę aktualniejszą niż klucz.</p></main></body></html>
