@@ -6,27 +6,43 @@ a{color:var(--acc)}h1,h2,h3{line-height:1.25}h2{margin-top:2em;border-bottom:1px
 table{border-collapse:collapse;display:block;overflow-x:auto}td,th{border:1px solid var(--line);padding:6px 10px;text-align:left}
 code{background:var(--code);padding:1px 5px;border-radius:4px;font-size:.9em}pre{background:var(--code);padding:12px;overflow-x:auto;border-radius:8px}pre code{padding:0;background:none}
 blockquote{border-left:3px solid var(--line);margin:0;padding-left:12px;color:var(--mut)}</style></head><body><main><nav><a href="index.html">← Testy KPP</a></nav><h1>Polityka prywatności — „Testy KPP” (iOS)</h1>
-<p>Ostatnia aktualizacja: 22 listopada 2026 r. · Dotyczy aplikacji na iPhone'a od wersji 2.0.</p>
+<p>Ostatnia aktualizacja: 23 listopada 2026 r. · Dotyczy aplikacji na iPhone'a od wersji 2.0.</p>
 <p>Wydawca aplikacji: Michał Boryczko (marka Michal B Games). Kontakt: mj.boryczko@gmail.com</p>
 <h2>W skrócie</h2>
 <ul>
 <li>Aplikacja nie wymaga konta, logowania ani podania danych osobowych.</li>
 <li>Twój postęp nauki jest zapisany tylko na Twoim urządzeniu.</li>
-<li>Aplikacja nie zbiera analityki, nie wyświetla reklam, nie śledzi Cię między aplikacjami i nie używa identyfikatora reklamowego (IDFA).</li>
-<li>Aplikacja nie wysyła Twoich danych na żaden serwer.</li>
+<li>Zbieramy anonimowe statystyki użycia za pomocą TelemetryDeck, żeby wiedzieć, które funkcje działają i co poprawić. Nie pozwalają one zidentyfikować Cię z imienia i nazwiska. Możesz je wyłączyć w aplikacji: Profil → Statystyki użycia.</li>
+<li>Aplikacja nie wyświetla reklam, nie śledzi Cię między aplikacjami i nie używa identyfikatora reklamowego (IDFA).</li>
 </ul>
 <h2>Dane przechowywane na urządzeniu</h2>
-<p>Odpowiedzi, historia egzaminów próbnych, oznaczone pytania, zgłoszenia błędów w pytaniach, ustawienia (np. data egzaminu, imię do powitania) i terminy powtórek są zapisane lokalnie w pamięci aplikacji. Nie wysyłamy ich na żaden serwer. Możesz je usunąć w każdej chwili w aplikacji (Profil → Zresetuj postęp) lub usuwając aplikację z urządzenia.</p>
+<p>Odpowiedzi, historia egzaminów próbnych, oznaczone pytania, zgłoszenia błędów w pytaniach, ustawienia (np. data egzaminu, imię do powitania) i terminy powtórek są zapisane lokalnie w pamięci aplikacji. Nie wysyłamy ich na żaden serwer (do statystyk trafiają tylko zdarzenia opisane w sekcji „Analityka”). Możesz je usunąć w każdej chwili w aplikacji (Profil → Zresetuj postęp) lub usuwając aplikację z urządzenia.</p>
 <p>Jeśli masz włączoną kopię zapasową iCloud lub kopię na komputerze, system iOS może uwzględnić w niej dane aplikacji zgodnie z Twoimi ustawieniami. Wydawca nie ma do nich dostępu.</p>
+<h2>Analityka (TelemetryDeck)</h2>
+<p>Używamy usługi <a href="https://telemetrydeck.com">TelemetryDeck</a> (TelemetryDeck GmbH, Niemcy), żeby zrozumieć, z jakich funkcji korzystają użytkownicy i jak ulepszać aplikację.</p>
+<p>Wysyłane są anonimowe zdarzenia:</p>
+<ul>
+<li>uruchomienie aplikacji i zakończenie ekranu powitalnego (wybrana długość sesji, czy ustawiono datę egzaminu),</li>
+<li>rozpoczęcie i zakończenie sesji nauki (tryb nauki, nazwa działu, liczba pytań i poprawnych odpowiedzi),</li>
+<li>rozpoczęcie, zakończenie i porzucenie egzaminu próbnego (wynik, zdany/niezdany),</li>
+<li>otwarcie ekranu „Pełny dostęp”, próba zakupu i jej wynik (z ceną produktu, bez żadnych danych płatniczych), przywrócenie zakupu,</li>
+<li>ustawienie lub wyłączenie daty egzaminu (bez samej daty),</li>
+<li>zgłoszenie błędu w pytaniu (tylko numer pytania, bez treści zgłoszenia),</li>
+<li>czy masz pełny dostęp,</li>
+<li>podstawowe informacje techniczne dodawane przez SDK: wersja aplikacji, wersja systemu, model urządzenia, język i ustawienia regionalne.</li>
+</ul>
+<p>Identyfikator urządzenia jest haszowany (SHA-256) już na telefonie, więc TelemetryDeck nie otrzymuje danych, które pozwalałyby ustalić, kim jesteś. Nie wysyłamy Twojego imienia, treści odpowiedzi, treści zgłoszeń, daty egzaminu, adresu e-mail ani lokalizacji.</p>
+<p><strong>Jak wyłączyć:</strong> Profil → Dane → „Statystyki użycia”. Statystyki są domyślnie włączone. Po wyłączeniu aplikacja od razu przestaje wysyłać jakiekolwiek zdarzenia, także po ponownym uruchomieniu.</p>
+<p>Podstawą przetwarzania jest nasz prawnie uzasadniony interes (art. 6 ust. 1 lit. f RODO), czyli ulepszanie aplikacji. Dane analityczne przechowujemy tak długo, jak są potrzebne do analizy, nie dłużej niż pozwalają ustawienia konta TelemetryDeck.</p>
 <h2>Zakupy</h2>
 <p>Zakup „Pełny dostęp” obsługuje Apple (App Store). Nie widzimy ani nie przechowujemy danych karty ani konta Apple. Aplikacja sprawdza w App Store tylko, czy zakup został dokonany. Apple może przekazywać nam zbiorcze, anonimowe statystyki sprzedaży i pobrań.</p>
 <h2>Zgłoszenia błędów w pytaniach</h2>
-<p>Zgłoszenia zapisują się lokalnie na urządzeniu i nie są nigdzie wysyłane. Jeśli w przyszłej wersji pojawi się ich wysyłka, zaktualizujemy tę politykę i poinformujemy o tym w opisie wersji. Nie dołączaj do zgłoszeń danych osobowych.</p>
+<p>Treść zgłoszeń zapisuje się lokalnie na urządzeniu i nie jest nigdzie wysyłana. Do statystyk trafia tylko informacja, że zgłoszono pytanie o danym numerze. Jeśli w przyszłej wersji pojawi się ich wysyłka, zaktualizujemy tę politykę i poinformujemy o tym w opisie wersji. Nie dołączaj do zgłoszeń danych osobowych.</p>
 <h2>Linki zewnętrzne</h2>
 <p>Aplikacja zawiera linki do materiałów źródłowych (np. strony Centrum Egzaminów Medycznych). Po ich otwarciu obowiązują zasady prywatności danej strony.</p>
 <h2>Dzieci</h2>
 <p>Aplikacja jest przeznaczona dla osób dorosłych przygotowujących się do kursu i egzaminu KPP. Nie zbieramy świadomie danych od dzieci.</p>
 <h2>Twoje prawa</h2>
-<p>Ponieważ nie przetwarzamy Twoich danych osobowych poza Twoim urządzeniem, nie mamy dostępu do danych, które moglibyśmy udostępnić lub usunąć. W razie pytań napisz na adres kontaktowy powyżej. Masz też prawo złożyć skargę do Prezesa Urzędu Ochrony Danych Osobowych (uodo.gov.pl).</p>
+<p>Twój postęp nauki jest tylko na Twoim urządzeniu, a dane analityczne są anonimowe, więc zwykle nie możemy powiązać ich z konkretną osobą. Masz jednak prawo zapytać nas o przetwarzane dane i wnieść sprzeciw wobec analityki. Najprościej wyłączysz ją przełącznikiem w aplikacji (Profil → Statystyki użycia), możesz też napisać na adres kontaktowy powyżej. Masz też prawo złożyć skargę do Prezesa Urzędu Ochrony Danych Osobowych (uodo.gov.pl).</p>
 <h2>Zmiany polityki</h2>
 <p>O zmianach poinformujemy na tej stronie, podając nową datę aktualizacji.</p></main></body></html>
